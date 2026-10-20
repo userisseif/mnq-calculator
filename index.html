@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MNQ &amp; NQ Position Size Calculator (Free) – Futures Risk + Prop Firm Drawdown</title>
+
+<meta name="description" content="Free MNQ, NQ, MES and ES position size calculator. Enter your account, risk and stop in points to get contracts, dollar risk, target price and prop firm drawdown room.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+</head>
+<body>
+<style>
+/* Layout: a trading-desk ticket. Inputs on the left, a big live readout on the right, prop firm panel below */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#111820; --muted:#5d6b78; --line:#d6dde4;
+  --accent:#1d4ed8; --gain:#14804a; --loss:#c2352b; --field:#f6f8fa;
+  --display:"Archivo", system-ui, sans-serif; --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b1016; --panel:#121a23; --ink:#e6edf3; --muted:#8b9aa8; --line:#243140;
+  --accent:#6b9bff; --gain:#3ccf86; --loss:#ff6b5e; --field:#0e151d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1016; --panel:#121a23; --ink:#e6edf3; --muted:#8b9aa8; --line:#243140;
+  --accent:#6b9bff; --gain:#3ccf86; --loss:#ff6b5e; --field:#0e151d; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--display);font-size:15px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:36px 48px;display:grid;gap:20px}
+h1{font-size:clamp(28px,5vw,40px);font-weight:800;margin:0;letter-spacing:-.02em;text-wrap:balance}
+.sub{color:var(--muted);margin:6px 0 0;max-width:60ch}
+.ticket{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:720px){.ticket{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px;min-width:0}
+.panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 14px;font-weight:700}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+input,select{font-family:var(--mono);font-size:16px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:6px;padding:9px 10px;width:100%}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.seg{display:flex;gap:6px;grid-column:1/-1}
+.seg button{flex:1;font:700 14px var(--display);padding:9px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.big{font-family:var(--mono);font-size:64px;font-weight:600;line-height:1;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.big small{font-size:18px;color:var(--muted);font-weight:400}
+.rows{display:grid;margin-top:16px}
+.row{display:flex;justify-content:space-between;gap:12px;padding-block:9px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.row span:last-child{font-family:var(--mono);font-weight:600}
+.gain{color:var(--gain)} .loss{color:var(--loss)}
+.warn{margin-top:12px;padding:10px 12px;border-radius:6px;border:1px solid var(--loss);color:var(--loss);font-size:13px}
+.meter{height:10px;border-radius:5px;background:var(--field);border:1px solid var(--line);overflow:hidden;margin-top:12px}
+.meter i{display:block;height:100%;background:var(--gain);width:0}
+.cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
+.cta p{margin:0;max-width:56ch}
+.cta strong{display:block;font-size:18px}
+.buy{display:inline-block;background:var(--accent);color:var(--panel);text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px}
+.buy:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+footer{color:var(--muted);font-size:12px}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Futures Position Size Calculator</h1>
+    <p class="sub">MNQ, NQ, MES and ES. Set your risk and stop, and get contracts, dollar risk and your target price. Commissions are included.</p>
+  </header>
+
+  <div class="ticket">
+    <div class="panel">
+      <h2>Trade</h2>
+      <div class="fields">
+        <label for="sym">Contract
+          <select id="sym">
+            <option value="2">MNQ · $2/pt</option>
+            <option value="20">NQ · $20/pt</option>
+            <option value="5">MES · $5/pt</option>
+            <option value="50">ES · $50/pt</option>
+          </select>
+        </label>
+        <label for="acct">Account size ($)<input id="acct" type="number" inputmode="decimal" value="50000" min="0"></label>
+        <label for="riskPct">Risk per trade (%)<input id="riskPct" type="number" inputmode="decimal" value="0.5" step="0.1" min="0"></label>
+        <label for="fee">Fees per contract, round trip ($)<input id="fee" type="number" inputmode="decimal" value="1.24" step="0.01" min="0"></label>
+        <div class="seg" role="group" aria-label="Direction">
+          <button type="button" id="long" aria-pressed="true">Long</button>
+          <button type="button" id="short" aria-pressed="false">Short</button>
+        </div>
+        <label for="entry">Entry price<input id="entry" type="number" inputmode="decimal" value="21000" step="0.25"></label>
+        <label for="stop">Stop (points)<input id="stop" type="number" inputmode="decimal" value="20" step="0.25" min="0"></label>
+        <label for="rr">Reward : risk<input id="rr" type="number" inputmode="decimal" value="2" step="0.5" min="0"></label>
+      </div>
+    </div>
+
+    <div class="panel" aria-live="polite">
+      <h2>Size</h2>
+      <div class="big" id="qty">6 <small>contracts</small></div>
+      <div class="rows">
+        <div class="row"><span>Max risk allowed</span><span id="maxRisk">$250.00</span></div>
+        <div class="row"><span>Risk per contract</span><span id="perC">$41.24</span></div>
+        <div class="row"><span>Total risk at stop</span><span id="tot" class="loss">$247.44</span></div>
+        <div class="row"><span>Stop price</span><span id="stopPx">20,980.00</span></div>
+        <div class="row"><span>Target price</span><span id="tgtPx">21,040.00</span></div>
+        <div class="row"><span>Profit at target</span><span id="win" class="gain">$472.56</span></div>
+      </div>
+      <div class="warn" id="warn" hidden></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Prop firm drawdown</h2>
+    <div class="fields" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+      <label for="dd">Max drawdown ($)<input id="dd" type="number" inputmode="decimal" value="2000" min="0"></label>
+      <label for="peak">Highest balance reached ($)<input id="peak" type="number" inputmode="decimal" value="50600"></label>
+      <label for="bal">Current balance ($)<input id="bal" type="number" inputmode="decimal" value="50250"></label>
+      <label for="daily">Daily loss limit ($)<input id="daily" type="number" inputmode="decimal" value="1000" min="0"></label>
+    </div>
+    <div class="rows">
+      <div class="row"><span>Account fails at</span><span id="failAt">$48,600.00</span></div>
+      <div class="row"><span>Room left before fail</span><span id="room">$1,650.00</span></div>
+      <div class="row"><span>Full-size losses you can take (at the size above)</span><span id="losses">4</span></div>
+    </div>
+    <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+  </div>
+
+  <div class="panel cta">
+    <p><strong>Track every trade automatically</strong>The Futures Trading Journal spreadsheet logs trades, calculates P&amp;L and R, and shows your win rate, profit factor, best setups and prop firm drawdown left. Works in Excel and Google Sheets.</p>
+    <a class="buy" id="buy" href="https://BUY-LINK-GOES-HERE" target="_blank" rel="noopener">Get the journal · $12</a>
+  </div>
+
+  <footer>Point values from CME contract specs. For planning only, not financial advice. Futures trading carries substantial risk of loss.</footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const usd=n=>(n<0?"-":"")+"$"+Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const px=n=>n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const num=id=>{const v=parseFloat($(id).value);return isFinite(v)?v:0};
+let dir=1;
+function calc(){
+  const pv=num("sym"),acct=num("acct"),risk=acct*num("riskPct")/100,fee=num("fee"),
+        entry=num("entry"),stop=num("stop"),rr=num("rr");
+  const perC=stop*pv+fee, qty=perC>0?Math.floor(risk/perC):0;
+  $("qty").innerHTML=qty+" <small>"+(qty===1?"contract":"contracts")+"</small>";
+  $("maxRisk").textContent=usd(risk); $("perC").textContent=usd(perC);
+  $("tot").textContent=usd(qty*perC);
+  $("stopPx").textContent=px(entry-dir*stop); $("tgtPx").textContent=px(entry+dir*stop*rr);
+  $("win").textContent=usd(qty*(stop*rr*pv-fee));
+  const w=$("warn");
+  if(qty===0&&stop>0){w.hidden=false;w.textContent="Your stop is too wide for this risk. One contract would risk "+usd(perC)+". Tighten the stop, raise risk, or switch to the micro contract.";}
+  else w.hidden=true;
+  const dd=num("dd"),peak=num("peak"),bal=num("bal"),daily=num("daily");
+  const failAt=peak-dd, room=Math.max(0,bal-failAt);
+  $("failAt").textContent=usd(failAt); $("room").textContent=usd(room);
+  const usable=daily>0?Math.min(room,daily):room;
+  $("losses").textContent=qty>0?Math.floor(usable/(qty*perC)):"–";
+  $("meter").style.width=(dd>0?Math.min(100,room/dd*100):0)+"%";
+  $("meter").style.background=room/dd<.3?"var(--loss)":"var(--gain)";
+}
+document.querySelectorAll("input,select").forEach(e=>e.addEventListener("input",calc));
+$("long").onclick=()=>{dir=1;$("long").setAttribute("aria-pressed","true");$("short").setAttribute("aria-pressed","false");calc()};
+$("short").onclick=()=>{dir=-1;$("short").setAttribute("aria-pressed","true");$("long").setAttribute("aria-pressed","false");calc()};
+calc();
+</script>
+</body>
+</html>
